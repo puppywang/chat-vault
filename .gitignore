@@ -1,0 +1,13 @@
+# 密钥（AI 助手 API key，勿提交）
+API_KEY.txt
+
+# 依赖与运行产物
+node_modules/
+*.log
+
+# 本地数据 / 编辑器
+*.db
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

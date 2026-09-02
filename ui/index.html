@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChatVault · 对话归档</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <div class="brand" id="brand" title="返回对话列表">📦 ChatVault</div>
+  <div class="searchbar">
+    <input id="search-input" type="search" placeholder='搜索全部会话…（中英文；"引号短语"=连续匹配）' autocomplete="off">
+    <div class="search-nav" id="search-nav" style="display:none">
+      <span class="ss-count" id="ss-count"></span>
+      <button class="ss-btn" id="ss-prev" title="上一个 (Shift+Enter)">▲</button>
+      <button class="ss-btn" id="ss-next" title="下一个 (Enter)">▼</button>
+    </div>
+  </div>
+  <div class="agents" id="agent-filters"></div>
+  <button id="settings-btn" class="hdr-btn" title="设置">⚙️</button>
+</header>
+
+<div class="layout">
+  <aside id="sidebar">
+    <nav>
+      <button class="nav-btn active" data-view="timeline">🕘 时间线</button>
+      <button class="nav-btn" data-view="workspaces">📁 工作区</button>
+      <button class="nav-btn" data-view="flagged">🚩 标记</button>
+    </nav>
+    <input id="ws-filter" class="ws-filter" type="search" placeholder="过滤工作区…" autocomplete="off">
+    <div id="workspace-list" class="workspace-list"></div>
+    <div id="stats-box" class="stats-box"></div>
+  </aside>
+
+  <main id="main">
+    <div id="content"></div>
+  </main>
+</div>
+
+<!-- AI 助手抽屉 -->
+<button id="ai-fab" title="AI 助手：自然语言查对话库">💬</button>
+<div id="ai-drawer" class="ai-drawer">
+  <div class="ai-head">
+    <span>💬 对话库助手</span>
+    <span>
+      <button id="ai-clear" title="清空当前显示（历史问答已归档，刷新后可恢复）">🗑</button>
+      <button id="ai-close" title="收起">✕</button>
+    </span>
+  </div>
+  <div id="ai-msgs" class="ai-msgs"></div>
+  <div class="ai-input-row">
+    <input id="ai-input" type="text" placeholder="问点什么，如：哪些对话有未完成的任务？" autocomplete="off">
+    <button id="ai-send">➤</button>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "chatvault",
+  "version": "0.4.0",
+  "description": "Multi-agent conversation archive & search: sync chats from Claude Code / Codex / Copilot (and more) into one searchable local database.",
+  "type": "module",
+  "bin": {
+    "chat-vault": "bin/agent-exporter.js",
+    "agent-exporter": "bin/agent-exporter.js"
+  },
+  "scripts": {
+    "start": "node src/cli.js serve",
+    "sync": "node src/cli.js sync",
+    "search": "node src/cli.js search",
+    "serve": "node src/cli.js serve",
+    "stats": "node src/cli.js stats",
+    "logs": "node src/cli.js logs"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}
