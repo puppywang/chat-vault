@@ -1,0 +1,70 @@
+name: Release
+
+# 推送 v* tag 触发：校验 → 冒烟 → npm pack → 发布 npm（配置了 NPM_TOKEN 时）→ 产物挂到 GitHub Release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # gh release upload
+  id-token: write # npm publish --provenance（供应链溯源签名）
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      NPM_TOKEN_PRESENT: ${{ secrets.NPM_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: tag 与 package.json 版本一致性
+        run: |
+          TAG_VER="${GITHUB_REF_NAME#v}"
+          PKG_VER=$(node -p "require('./package.json').version")
+          if [ "$TAG_VER" != "$PKG_VER" ]; then
+            echo "::error::tag v$TAG_VER 与 package.json 版本 $PKG_VER 不一致"
+            exit 1
+          fi
+
+      - name: 语法检查
+        run: |
+          for f in src/*.js src/adapters/*.js bin/*.js; do
+            node --check "$f"
+          done
+
+      - name: 冒烟测试（stats + serve 起服 + API）
+        run: |
+          node bin/chat-vault.js stats
+          node bin/chat-vault.js serve --port 8379 --no-sync &
+          SRV=$!
+          ok=""
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8379/api/stats >/dev/null; then ok=1; break; fi
+            sleep 1
+          done
+          kill $SRV 2>/dev/null || true
+          if [ -z "$ok" ]; then echo "::error::serve 30s 内未就绪"; exit 1; fi
+
+      - name: npm pack + 校验和
+        run: |
+          mkdir dist
+          npm pack --pack-destination dist
+          (cd dist && sha256sum *.tgz > SHA256SUMS.txt)
+
+      - name: 发布到 npm
+        if: env.NPM_TOKEN_PRESENT == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+
+      - name: 产物挂到 GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "$GITHUB_REF_NAME" 2>/dev/null || true
+          gh release upload "$GITHUB_REF_NAME" dist/* --clobber

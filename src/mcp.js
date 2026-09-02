@@ -74,5 +74,5 @@ export function startMcp({ db }) {
   process.on('SIGINT', () => process.exit(0));
   process.on('SIGTERM', () => process.exit(0));
 
-  console.error(`[chatvault-mcp] 就绪 (工具 ${TOOLS.length} 个)；在 agent 的 MCP 配置中以 node bin/agent-exporter.js mcp 启动`);
+  console.error(`[chat-vault-mcp] 就绪 (工具 ${TOOLS.length} 个)；stdio MCP 可用 chat-vault mcp 启动，HTTP MCP 见 http://127.0.0.1:8377/mcp`);
 }

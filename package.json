@@ -1,12 +1,20 @@
 {
-  "name": "chatvault",
-  "version": "0.4.0",
+  "name": "chat-vault",
+  "version": "0.4.1",
   "description": "Multi-agent conversation archive & search: sync chats from Claude Code / Codex / Copilot (and more) into one searchable local database.",
   "type": "module",
+  "license": "MIT",
   "bin": {
-    "chat-vault": "bin/agent-exporter.js",
-    "agent-exporter": "bin/agent-exporter.js"
+    "chat-vault": "bin/chat-vault.js"
   },
+  "files": [
+    "bin/",
+    "src/",
+    "ui/",
+    "README.md",
+    "AGENTS.md",
+    "LICENSE"
+  ],
   "scripts": {
     "start": "node src/cli.js serve",
     "sync": "node src/cli.js sync",
@@ -17,5 +25,27 @@
   },
   "engines": {
     "node": ">=22.5.0"
-  }
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "claude-code",
+    "codex",
+    "copilot",
+    "cursor",
+    "windsurf",
+    "conversations",
+    "archive",
+    "search",
+    "sqlite",
+    "fts5",
+    "mcp",
+    "chat-history"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/puppywang/chat-vault.git"
+  },
+  "homepage": "https://github.com/puppywang/chat-vault#readme",
+  "bugs": "https://github.com/puppywang/chat-vault/issues"
 }

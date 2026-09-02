@@ -20,13 +20,27 @@
 ## 快速开始
 
 ```bash
-npm start                  # 启动 Web UI，默认 http://127.0.0.1:8377
-npm run sync               # 手动同步一次
-npm run stats              # 看看库里有多少
+# 方式一：npm 安装（推荐，升级方便）
+npm install -g chat-vault
 
-# 或者直接用 node
+# 方式二：免安装直接跑
+npx chat-vault@latest serve
+
+# 方式三：git clone（想改代码就用这个）
+git clone https://github.com/puppywang/chat-vault.git
+cd chat-vault && npm start
+```
+
+装好后（或 clone 后）常用命令：
+
+```bash
+chat-vault serve --port 8377   # 启动 Web UI，默认 http://127.0.0.1:8377
+chat-vault sync                # 手动同步一次
+chat-vault search "入水检测"    # 命令行搜索
+chat-vault stats               # 看看库里有多少
+
+# clone 的话也可以用 node 直接跑
 node src/cli.js serve --port 8377
-node src/cli.js search "入水检测"
 ```
 
 **日常只要开着 `serve` 就行**：它会监听各 Agent 的数据目录，有新对话自动同步，不用每次手动 `sync`。Windows 可以双击 `start-chatvault.bat`，也可以设为开机自启（见底部）。
