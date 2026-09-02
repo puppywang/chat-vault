@@ -54,6 +54,8 @@ jobs:
         run: |
           mkdir dist
           npm pack --pack-destination dist
+          # 版本号别名：releases/latest/download/chat-vault.tgz 永久直链（README 安装命令用）
+          cp dist/chat-vault-*.tgz dist/chat-vault.tgz
           (cd dist && sha256sum *.tgz > SHA256SUMS.txt)
 
       - name: 发布到 npm

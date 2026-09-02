@@ -20,13 +20,10 @@
 ## 快速开始
 
 ```bash
-# 方式一：npm 安装（推荐，升级方便）
-npm install -g chat-vault
+# 方式一：GitHub Release 直装（推荐，升级就重跑一次）
+npm install -g https://github.com/puppywang/chat-vault/releases/latest/download/chat-vault.tgz
 
-# 方式二：免安装直接跑
-npx chat-vault@latest serve
-
-# 方式三：git clone（想改代码就用这个）
+# 方式二：git clone（想改代码就用这个）
 git clone https://github.com/puppywang/chat-vault.git
 cd chat-vault && npm start
 ```
