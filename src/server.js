@@ -149,6 +149,29 @@ function classify(filePath) {
   return { kind: 'text', mime: 'text/plain' };
 }
 
+/** 目录列表（文件预览面板的目录浏览用）：子项带完整路径与 stat，目录优先排序 */
+function listDir(db, dirPath) {
+  const all = fs.readdirSync(dirPath, { withFileTypes: true });
+  const truncated = all.length > 5000;
+  const items = truncated ? all.slice(0, 5000) : all;
+  const entries = items.map((it) => {
+    const full = path.join(dirPath, it.name);
+    let size = null, mtime = null;
+    try { const st = fs.statSync(full); size = st.size; mtime = st.mtimeMs; } catch { /* 破损符号链接等 */ }
+    return { name: it.name, path: full, dir: it.isDirectory(), size, mtime };
+  });
+  entries.sort((a, b) => (a.dir !== b.dir ? (a.dir ? -1 : 1) : a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1));
+  const parent = path.dirname(dirPath);
+  return {
+    path: dirPath, kind: 'dir',
+    parent: parent !== dirPath ? parent : null,
+    parentAllowed: parent !== dirPath ? !!resolveInWorkspace(db, parent) : false,
+    total: all.length,
+    truncated,
+    entries,
+  };
+}
+
 function handleFilePreview(db, url, res) {
   const filePath = resolveInWorkspace(db, url.searchParams.get('path'));
   if (!filePath) return sendJson(res, 403, { error: '路径不在已知工作区内' });
@@ -156,6 +179,7 @@ function handleFilePreview(db, url, res) {
   try { st = fs.statSync(filePath); } catch {
     return sendJson(res, 404, { error: '文件不存在' });
   }
+  if (st.isDirectory()) return sendJson(res, 200, listDir(db, filePath));
   if (!st.isFile()) return sendJson(res, 404, { error: '不是文件' });
   const { kind, mime } = classify(filePath);
   if (kind !== 'text' && kind !== 'markdown') {
@@ -316,6 +340,12 @@ export function startServer(db, { port = 8377, dbPath = '' } = {}) {
 
       // MCP Streamable HTTP 传输：所有 MCP 客户端共用本进程（不再各 spawn 一个 stdio 进程）。
       // 无状态：不维护 Mcp-Session-Id；tools/call 走 queryPool worker，与 web 查询共用线程池。
+      // OAuth discovery 路径先于 /mcp 处理：这些端点必须返回非 200 且不带 WWW-Authenticate，
+      // 否则 codex 等客户端会把 200 响应体当 OAuth 受保护资源元数据解析而握手失败。
+      if (p.startsWith('/.well-known/')) {
+        res.writeHead(404, { 'Access-Control-Allow-Origin': '*' });
+        return res.end('Not Found');
+      }
       if (p === '/mcp') {
         const corsHeaders = {
           'Access-Control-Allow-Origin': '*',
@@ -325,15 +355,11 @@ export function startServer(db, { port = 8377, dbPath = '' } = {}) {
         };
         if (req.method === 'OPTIONS') { res.writeHead(204, corsHeaders); return res.end(); }
         if (req.method === 'GET') {
-          // 客户端连通性探测（部分 MCP 客户端先 GET）；宽容返回 serverInfo
-          return sendJson(res, 200, {
-            jsonrpc: '2.0',
-            result: {
-              protocolVersion: MCP_FALLBACK_VERSION,
-              capabilities: { tools: {} },
-              serverInfo: { name: MCP_SERVER_NAME, title: MCP_SERVER_TITLE, version: MCP_VERSION },
-            },
-          });
+          // 客户端连通性探测：rmcp(codex) 会先 GET /mcp 探测 OAuth 支持。
+          // 若返回 200+JSON 会被误判为 OAuth resource metadata（缺 resource 字段 → 握手失败）。
+          // 返回 405 且不带 WWW-Authenticate → 客户端判定无需 OAuth，走 POST initialize。
+          res.writeHead(405, corsHeaders);
+          return res.end('Method Not Allowed');
         }
         if (req.method !== 'POST') { res.writeHead(405, corsHeaders); return res.end('Method Not Allowed'); }
         const msg = await readBody(req);
@@ -354,8 +380,10 @@ export function startServer(db, { port = 8377, dbPath = '' } = {}) {
             case 'tools/list':
               return isRequest ? { result: { tools: MCP_TOOLS } } : null;
             case 'resources/list':
+              // 按 MCP 规范只返回本方法应有的字段；混入他方法字段会让严格解码的客户端报错
+              return isRequest ? { result: { resources: [] } } : null;
             case 'resources/templates/list':
-              return isRequest ? { result: { resources: [], resourceTemplates: [] } } : null;
+              return isRequest ? { result: { resourceTemplates: [] } } : null;
             case 'tools/call': {
               const name = m.params?.name;
               try {
@@ -655,6 +683,21 @@ export function startServer(db, { port = 8377, dbPath = '' } = {}) {
         return sendJson(res, 200, hit.data);
       }
       if (p === '/api/file') return handleFilePreview(db, url, res);
+
+      // 批量识别 file-link 目标是目录还是文件（UI 渲染后把目录链接换成 📂 图标）
+      if (p === '/api/file-kinds' && req.method === 'POST') {
+        const body = await readBody(req);
+        const paths = Array.isArray(body.paths) ? body.paths.slice(0, 300) : [];
+        const kinds = {};
+        for (const raw of paths) {
+          if (typeof raw !== 'string') continue;
+          const fp = resolveInWorkspace(db, raw);
+          if (!fp) continue; // 不在工作区白名单内：不标记（点击时统一提示 403）
+          try { kinds[raw] = fs.statSync(fp).isDirectory() ? 'dir' : 'file'; } catch { /* 不存在 */ }
+        }
+        return sendJson(res, 200, { kinds });
+      }
+
       if (p === '/api/raw') return handleRawFile(db, url, res);
       if (p === '/api/image') return handleImage(url, res);
       if (p === '/api/stats') return sendJson(res, 200, { ...stats(db), agents: AGENTS });

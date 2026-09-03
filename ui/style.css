@@ -226,6 +226,19 @@ details.msg[open].msg > summary::before { content: '▾ '; }
 .fp-line.target { background: rgba(79, 156, 247, .16); }
 .fp-line.target .ln { color: var(--accent); font-weight: 700; }
 
+/* 目录浏览（file:// 指向目录时的预览面板） */
+.fp-body.fp-dir { padding: 4px 0; }
+.dir-row {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 14px; cursor: pointer; text-decoration: none;
+  color: var(--fg); font-size: 12px; min-width: 0;
+}
+.dir-row:hover { background: rgba(255,255,255,.04); }
+.dir-row .dir-size { margin-left: auto; padding-left: 16px; color: var(--fg-faint); font-size: 11px; flex-shrink: 0; }
+.dir-row.is-dir { color: #7ec4a8; }
+.dir-row.parent { color: var(--accent); border-bottom: 1px solid var(--border); margin-bottom: 4px; position: sticky; top: -4px; background: var(--bg); }
+.msg a.file-link.is-dir { color: #7ec4a8; border-bottom-color: #7ec4a8; }
+
 /* 图片/音视频预览 */
 .fp-media { display: flex; align-items: center; justify-content: center; padding: 16px; overflow: auto; height: 100%; }
 .fp-media img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }

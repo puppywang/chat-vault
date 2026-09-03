@@ -1981,6 +1981,24 @@ function updatePreview() {
       }
       const rawUrl = `/api/raw?path=${encodeURIComponent(state.preview.path)}`;
 
+      // 目录：可浏览列表（上级导航 + 点击子项，文件复用预览、目录继续下钻）
+      if (d.kind === 'dir') {
+        body.className = 'fp-body fp-dir';
+        const rows = [];
+        if (d.parent && d.parentAllowed) {
+          rows.push(`<a class="file-link dir-row parent" data-kind="dir" data-path="${esc(d.parent)}" title="${esc(d.parent)}">↰ 上级目录</a>`);
+        }
+        for (const en of d.entries) {
+          const sizeTxt = en.dir ? '' : `<span class="dir-size">${fmtSize(en.size)}</span>`;
+          rows.push(`<a class="file-link dir-row${en.dir ? ' is-dir' : ''}" data-kind="${en.dir ? 'dir' : 'file'}"
+                      data-path="${esc(en.path)}" title="${esc(en.path)}">${en.dir ? '📁' : '📄'} ${esc(en.name)}${sizeTxt}</a>`);
+        }
+        body.innerHTML =
+          (d.truncated ? `<div class="fp-note">条目过多，仅显示前 ${d.entries.length} 个（共 ${d.total}）</div>` : '') +
+          (rows.length ? rows.join('') : '<div class="fp-note">空目录</div>');
+        return;
+      }
+
       // 图片：内嵌显示，点击新标签看原图
       if (d.kind === 'image') {
         body.innerHTML = `<div class="fp-media"><a href="${rawUrl}" target="_blank" rel="noopener">
@@ -2031,6 +2049,50 @@ function updatePreview() {
       }
     });
 }
+
+function fmtSize(n) {
+  if (n == null) return '';
+  if (n < 1024) return `${n} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let v = n;
+  for (const u of units) {
+    v /= 1024;
+    if (v < 1024) return `${v.toFixed(v < 10 ? 1 : 0)} ${u}`;
+  }
+  return `${v.toFixed(0)} TB`;
+}
+
+// ---------- 目录链接图标增强 ----------
+// 消息里的 file-link 渲染时统一是 📎（不知道目标是文件还是目录）；
+// 渲染后批量 stat 一次，把指向目录的链接换成 📂。MutationObserver 挂 body，
+// 覆盖首屏/增量分页/预览面板等所有渲染路径。
+
+let enhanceTimer = null;
+function scheduleEnhanceFileLinks() {
+  if (enhanceTimer) return;
+  enhanceTimer = setTimeout(async () => {
+    enhanceTimer = null;
+    const links = [...document.querySelectorAll('a.file-link:not([data-kind])')];
+    if (!links.length) return;
+    const paths = [...new Set(links.map((a) => a.dataset.path).filter(Boolean))].slice(0, 300);
+    if (!paths.length) { links.forEach((a) => { a.dataset.kind = 'file'; }); return; }
+    let kinds = null;
+    try {
+      kinds = (await api.post('/api/file-kinds', { paths })).kinds || {};
+    } catch { return; }
+    for (const a of links) {
+      const kind = kinds[a.dataset.path] || 'file';
+      a.dataset.kind = kind; // 标记过就不再重查
+      if (kind === 'dir') {
+        a.classList.add('is-dir');
+        a.firstChild && (a.firstChild.nodeValue = a.firstChild.nodeValue.replace('📎', '📂'));
+      }
+    }
+  }, 150);
+}
+new MutationObserver(scheduleEnhanceFileLinks)
+  .observe(document.body, { childList: true, subtree: true });
+
 
 // ---------- text fragment 高亮（:~:text= 前缀-,关键词,-后缀） ----------
 // 浏览器原生 text fragment 无法作用于 SPA hash 路由，这里解析同款语法自行高亮。
