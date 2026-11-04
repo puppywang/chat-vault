@@ -1,0 +1,19 @@
+{
+	"name": "chat-vault-pi-services",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Pi extension: start, track, health-check, tail and stop long-running services and bounded background jobs (also callable from ChatGPT through Chappie)",
+	"type": "module",
+	"keywords": [
+		"pi-package"
+	],
+	"pi": {
+		"extensions": [
+			"./extensions/services.js"
+		]
+	},
+	"peerDependencies": {
+		"typebox": "*"
+	},
+	"license": "MIT"
+}

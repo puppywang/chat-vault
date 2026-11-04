@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  :root { color-scheme: light dark; --fg: #1a1a1a; --muted: #6b7280; --bg: #fff; --line: #e5e7eb; --ok: #16a34a; --bad: #dc2626;
+          --chip: #f3f4f6; --work: #0f766e; --chat: #6b7280; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e5e7eb; --muted: #9ca3af; --bg: #1f2024; --line: #35373d; --ok: #4ade80; --bad: #f87171;
+            --chip: #2a2c31; --work: #2dd4bf; --chat: #9ca3af; }
+  }
+  body { width: 290px; margin: 0; padding: 12px 14px; background: var(--bg); color: var(--fg);
+         font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { margin: 0; font-size: 14px; font-weight: 600; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  #refresh { width: auto; padding: 2px 8px; font-size: 12px; font-weight: 500; background: transparent; color: var(--muted);
+             border: 1px solid var(--line); }
+  h2 { margin: 12px 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  label { color: var(--muted); }
+  input[type=number] { width: 72px; padding: 2px 6px; border: 1px solid var(--line); border-radius: 5px;
+                       background: transparent; color: inherit; font: inherit; }
+  button { width: 100%; padding: 7px; border: 0; border-radius: 6px; background: #10a37f; color: #fff;
+           font: inherit; font-weight: 600; cursor: pointer; }
+  button.secondary { background: transparent; color: var(--fg); border: 1px solid var(--line); font-weight: 500; }
+  button:disabled { opacity: .55; cursor: default; }
+  button + button, #codexThreadCandidates button { margin-top: 6px; }
+  .hint { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+  .hint:empty { display: none; }
+  #pageHealth { margin: 2px 0 0; }
+  #tunnel { margin: 2px 0 0; }
+  #tunnel[hidden] { display: none; }
+  #tunnel::before { content: "●"; margin-right: 4px; color: var(--muted); }
+  #tunnel.ok::before { color: var(--ok); }
+  #tunnel.warn::before { color: #d97706; }
+  #tunnel.bad::before { color: var(--bad); }
+  #tunnel.bad { color: var(--bad); }
+  /* 当前对话卡片：类型、Codex 用量、同步状态集中在一处，操作按钮在下方 */
+  .card { margin-top: 10px; padding: 9px 10px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--chip); }
+  .card-title { font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+  #convMode { font-size: 12px; }
+  #convMode b { font-size: 13px; font-weight: 600; }
+  .actions { display: flex; gap: 6px; margin-top: 8px; }
+  .actions button { flex: 1; min-width: 0; margin-top: 0; }
+  .actions button[hidden] { display: none; }
+  button.link { width: auto; padding: 0; margin-top: 4px; background: transparent; color: var(--muted); font-size: 11px;
+                font-weight: 500; text-decoration: underline; }
+  /* Pi 会话块 */
+  /* Codex Cloud 线程块（行样式复用 Pi 会话） */
+  #codexCard .card-title { display: flex; justify-content: space-between; align-items: center; }
+  .pause-banner { margin: 8px 0; padding: 8px 10px; border-radius: 8px; border: 1px solid #fdba74; background: rgba(234,88,12,.08); color: #9a3412; font-size: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .pause-banner[hidden] { display: none; }
+  .pause-banner button { background: #ea580c; }
+  @media (prefers-color-scheme: dark) { .pause-banner { color: #fdba74; border-color: #9a3412; } }
+  #limitsCard .card-title { display: flex; justify-content: space-between; align-items: center; }
+  #codexFilter { width: 100%; box-sizing: border-box; margin-top: 4px; padding: 3px 6px; border: 1px solid var(--line);
+    border-radius: 5px; background: var(--bg); color: inherit; font: inherit; font-size: 12px; }
+  #codexList { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .codex-row .actions { margin-top: 6px; }
+  .codex-row .actions button { flex: none; width: auto; padding: 2px 10px; font-size: 11px; }
+  .codex-row .pi-driver { cursor: pointer; }
+  .codex-env { margin-top: 3px; }
+  .codex-env button.codex-check { margin: 0 0 0 auto; }
+  .codex-opts { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 11px; color: var(--muted); }
+  #piCard.unavailable > :not(.card-title):not(#piStatus) { display: none; }
+  #piCard .card-title { display: flex; justify-content: space-between; align-items: center; }
+  #piCard select, #piCard input[type=text] { width: 100%; box-sizing: border-box; margin-top: 4px; padding: 3px 6px; border: 1px solid var(--line);
+    border-radius: 5px; background: var(--bg); color: inherit; font: inherit; font-size: 12px; }
+  #piSessionList { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .pi-row { padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+  .pi-row.linked { border-color: #10a37f; box-shadow: inset 3px 0 0 #10a37f; }
+  .pi-headwrap { min-width: 0; }
+  .pi-head { display: flex; align-items: center; gap: 6px; min-width: 0; flex-wrap: wrap; }
+  .pi-head b { font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+  .pi-row.off .pi-head b { color: var(--muted); }
+  .pi-sub { margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* 状态 badge */
+  .pi-badge { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px 1px 6px; border-radius: 999px;
+    font-size: 10.5px; font-weight: 600; line-height: 16px; white-space: nowrap; flex: none; }
+  .pi-badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .pi-badge.run { color: #fff; background: #10a37f; }
+  .pi-badge.run::before { background: #fff; animation: pi-pulse 1s infinite; }
+  .pi-badge.on { color: #0d8a6a; background: rgba(16,163,127,.14); }
+  .pi-badge.wait { color: #b45309; background: rgba(217,119,6,.14); }
+  .pi-badge.off { color: var(--muted); background: var(--chip); }
+  @media (prefers-color-scheme: dark) {
+    .pi-badge.on { color: #3ddc97; background: rgba(16,163,127,.2); }
+    .pi-badge.wait { color: #fbbf24; background: rgba(217,119,6,.2); }
+  }
+  @keyframes pi-pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
+  .pi-chip { padding: 0 6px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 10.5px; line-height: 16px; white-space: nowrap; }
+  .pi-chip.linked { color: #0d8a6a; border-color: rgba(16,163,127,.5); }
+  .pi-chip.warn { color: #b45309; border-color: rgba(217,119,6,.55); background: rgba(217,119,6,.08); }
+  /* 驱动这个会话的 ChatGPT 对话 */
+  .pi-drivers { margin-top: 4px; display: flex; flex-direction: column; gap: 2px; }
+  .pi-driver { display: flex; gap: 6px; align-items: baseline; min-width: 0; font-size: 11px; color: var(--fg); text-decoration: none;
+    padding: 1px 4px; border-radius: 4px; }
+  a.pi-driver:hover { background: var(--chip); }
+  .pi-driver::before { content: "↳"; color: var(--muted); flex: none; }
+  .pi-driver.current { color: #0d8a6a; }
+  .pi-driver-name { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pi-driver-meta { flex: none; color: var(--muted); white-space: nowrap; }
+  .pi-driver.current .pi-driver-meta { color: inherit; }
+  @media (prefers-color-scheme: dark) { .pi-driver.current { color: #3ddc97; } .pi-chip.warn { color: #fbbf24; } }
+  .pi-code { font: 10.5px/16px ui-monospace, Consolas, monospace; color: var(--muted); background: var(--chip); padding: 0 5px; border-radius: 4px;
+    white-space: nowrap; cursor: copy; }
+  .pi-actions { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; align-items: center; }
+  .pi-actions button.pick { width: auto; padding: 2px 8px; font-size: 11px; font-weight: 500; background: transparent; color: var(--fg);
+    border: 1px solid var(--line); border-radius: 5px; margin: 0; }
+  .pi-actions button.pick:hover { border-color: #10a37f; }
+  .pi-actions .hint { font-size: 10.5px; }
+  /* 当前对话卡片里的「已连接 Pi」 */
+  #piLinked { margin-top: 6px; }
+  #piLinked:empty { display: none; }
+  .pi-linked-title { font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
+  .pi-linked-row { padding: 6px 8px; border-radius: 7px; background: var(--bg); border: 1px solid rgba(16,163,127,.45); }
+  .pi-linked-row + .pi-linked-row { margin-top: 4px; }
+  .pi-activity { margin-top: 4px; font-size: 11.5px; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; cursor: help; }
+  .pi-activity-label { flex: none; padding: 0 6px; border-radius: 4px; font-size: 10.5px; font-weight: 600; line-height: 16px;
+    color: #0d8a6a; background: rgba(16,163,127,.14); }
+  @media (prefers-color-scheme: dark) { .pi-activity-label { color: #3ddc97; background: rgba(16,163,127,.2); } }
+  #piStatus { margin-top: 4px; }
+  #piStatus.ok { color: var(--ok); } #piStatus.bad { color: var(--bad); }
+  #piBroker.ok { color: var(--ok); } #piBroker.warn { color: #d97706; }
+  #splitTarget { display: flex; gap: 4px; margin-top: 6px; }
+  #splitTarget[hidden] { display: none; }
+  #splitTarget button.pick { width: auto; flex: 1; min-width: 0; padding: 3px 6px; font-size: 11px; font-weight: 500;
+    background: transparent; color: var(--muted); border: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #splitTarget button.pick.on { color: var(--fg); border-color: #10a37f; }
+  #codexUsage { margin-top: 3px; }
+  #convMode.work b { color: var(--work); }
+  #convMode.chat b { color: var(--chat); }
+  #codexThreadStatus, #codexThreadDiagnostics { margin-top: 6px; }
+  #codexThreadCandidates { max-height: 220px; overflow-y: auto; }
+  #codexThreadCandidates button { text-align: left; overflow-wrap: anywhere; }
+  details { margin-top: 12px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+  #status { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); color: var(--muted); font-size: 11.5px; word-break: break-word; }
+  #status.ok { color: var(--ok); }
+  #status.bad { color: var(--bad); }
+</style>
+</head>
+<body>
+  <header><h1>ChatVault 同步</h1><button id="refresh" title="重新识别当前标签页（含分屏）、对话类型、Codex 用量与同步状态">↻ 刷新</button></header>
+  <div id="pauseBanner" class="pause-banner" hidden><span id="pauseText"></span><button id="pauseResume" title="清除暂停，扩展恢复自己读对话">恢复读取</button></div>
+  <div class="hint" id="pageHealth">正在检查当前页脚本版本…</div>
+  <div class="hint" id="tunnel" hidden title="读取本机 otunnel 的 health 接口（/health、/api/status、/metrics），不经过网络">正在检查 Chappie 隧道…</div>
+  <div id="splitTarget" hidden title="分屏中：弹窗作用于你最后操作的一侧，可在此切换"></div>
+  <button id="reinject" class="secondary" hidden title="扩展更新或重新加载后，已打开页面里的旧脚本会断开；无需刷新页面即可补注入">重新注入此标签页（无需刷新）</button>
+
+  <section class="card" aria-label="当前对话">
+    <div class="card-title">当前对话</div>
+    <div id="convMode" class="hint" title="按当前分支逐轮判断：带工作活动、子 agent 或 conversation-turn 后台标识的轮次是 Work 模式（由 Codex 执行，可打开对应会话）；其余是 Chat 模式（Pro 后台执行，没有 Codex 会话）。只用已取到的对话数据，不额外请求。">正在识别对话类型…</div>
+    <div class="hint" id="codexUsage"></div>
+    <div class="hint" id="piLinked"></div>
+    <div id="status" aria-live="polite">…</div>
+    <div class="actions">
+      <button id="codexThread">打开对应 Codex 会话</button>
+      <button id="sync" class="secondary">立即同步</button>
+    </div>
+    <button id="codexRelookup" class="link" hidden title="已记录的关联可能过期时，重新只读查找一次">重新查找关联</button>
+    <button id="codexThreadDeep" class="secondary" hidden title="兜底：只读检查更多云端根线程历史，并列出关联记录">深度查找关联 thread</button>
+    <div class="hint" id="codexThreadStatus" aria-live="polite"></div>
+    <div class="hint" id="codexThreadDiagnostics" aria-live="polite"></div>
+    <div id="codexThreadCandidates"></div>
+  </section>
+
+  <section class="card" id="limitsCard" aria-label="账号额度">
+    <div class="card-title"><span>账号额度</span><span class="hint" id="limitsAt"></span></div>
+    <div id="limitsBody"></div>
+    <div id="limitsUsage"></div>
+  </section>
+
+  <section class="card" id="piCard" aria-label="Pi 会话">
+    <div class="card-title"><span>Pi 会话</span><button id="piRefresh" class="link" title="重新读取目录与会话">刷新</button></div>
+    <div class="hint" id="piBroker">正在读取 Pi 会话…</div>
+    <select id="piWorkspace" title="最近用过 pi 的目录（来自 ~/.pi/agent/sessions 与 ChatVault 归档）"></select>
+    <input type="text" id="piWorkspaceCustom" placeholder="或直接输入目录路径，如 C:\Projects\example-app">
+    <div id="piSessionList"></div>
+    <button id="piToggle" class="link" hidden>显示全部</button>
+    <div class="actions">
+      <button id="piLaunch" title="在 Windows Terminal 新 tab 里起 pi（--provider chappie --model chatgpt），会话 ID 固定，连接文案自动复制">新建 Pi 会话</button>
+    </div>
+    <div class="hint" id="piStatus" aria-live="polite"></div>
+  </section>
+
+  <section class="card" id="codexCard" aria-label="Codex Cloud 线程">
+    <div class="card-title"><span>Codex Cloud 线程</span><span><button id="codexProbeAll" class="link" title="对列表里的每个线程发一次恢复线程请求，看哪些能用">全部检查</button> · <button id="codexRefresh" class="link" title="经 ChatGPT 标签页只读读取线程列表">刷新</button></span></div>
+    <input type="text" id="codexFilter" placeholder="按标题、工作目录、来源对话筛选">
+    <label class="codex-opts"><input type="checkbox" id="codexArchived">包含已归档的线程</label>
+    <div id="codexList"></div>
+    <button id="codexToggle" class="link" hidden>显示全部</button>
+    <div class="hint" id="codexStatus" aria-live="polite"></div>
+  </section>
+
+  <h2>页面显示</h2>
+  <div class="row">
+    <label for="durations">每轮耗时</label>
+    <input type="checkbox" id="durations">
+  </div>
+  <div class="row">
+    <label for="speedMetrics" title="out 是 SSE/WS 中全部已捕获助手文本的 tiktoken 计数，约每秒更新；≈TPS 是同一计数的累计平均速度，不等于上游总用量。">TTFT、输出 tokens 与 ≈TPS</label>
+    <input type="checkbox" id="speedMetrics">
+  </div>
+  <div class="row">
+    <label for="dotsTitle">Dots 状态显示在标签标题</label>
+    <input type="checkbox" id="dotsTitle">
+  </div>
+
+  <details>
+    <summary>高级设置</summary>
+    <div class="row">
+      <label for="injectionEnabled" title="关闭后同步暂停；切换后刷新 ChatGPT 标签页才彻底生效。">在 ChatGPT 页面注入脚本</label>
+      <input type="checkbox" id="injectionEnabled">
+    </div>
+    <div class="row">
+      <label for="syncEnabled">同步到 ChatVault</label>
+      <input type="checkbox" id="syncEnabled">
+    </div>
+    <div class="row">
+      <label for="auto">自动同步（关闭后仍可手动）</label>
+      <input type="checkbox" id="auto">
+    </div>
+    <div class="row">
+      <label for="stalledTurn" title="停止按钮仍在、5 分钟没有新数据时，只读查询 stream_status 与对应 Codex 轮次；Codex 已结束则提示打开结果，并暂停该对话的自动同步，避免反复读取触发 429。拿不到 Codex 结论时（核对失败／无证据／Chat 模式／被限流），页面静默满 15 分钟也会给出通用推送中断提示，附「刷新」按钮。">推送中断时核对 Codex 轮次</label>
+      <input type="checkbox" id="stalledTurn">
+    </div>
+    <div class="row">
+      <label for="recoveryReadMinMin" title="页面推送断开后，ChatGPT 会在恢复循环里反复读整段对话（Work 长轮次可持续 4 小时、约 30 秒一次），而这些读取在本轮仍在进行时都会被丢弃，却占用账号的对话读取额度，导致别的标签页「无法加载此 ChatGPT 对话」。扩展先用上一份对话回应；没有可用的就按对话限频：同一对话这么多分钟内只放行一次网络读取，其余直接回 429 让页面退避。本轮结束后读最终结果不受限。0 = 不限频（0–60 分钟）">恢复轮询同一对话至少隔几分钟读一次</label>
+      <input type="number" id="recoveryReadMinMin" min="0" max="60">
+    </div>
+    <div class="row">
+      <label for="notify">完成后桌面通知（不在看时）</label>
+      <input type="checkbox" id="notify">
+    </div>
+    <div class="row">
+      <label for="notifyMinSec">只提醒超过几秒的轮次</label>
+      <input type="number" id="notifyMinSec" min="0" max="3600">
+    </div>
+    <div class="row">
+      <label for="dotsQuietSec" title="Dot 的一轮没有结束信号：你不在看时收集 Dot 新发的消息，连续这么久没有新消息才合并提醒一次（30–3600 秒）">Dot 消息静默几秒后提醒</label>
+      <input type="number" id="dotsQuietSec" min="30" max="3600">
+    </div>
+    <div class="row">
+      <label for="port">ChatVault 端口</label>
+      <input type="number" id="port" min="1" max="65535">
+    </div>
+    <div class="row">
+      <label for="tunnelPort" title="otunnel 本地 health 端口（默认 8080）；填 0 不显示隧道状态">Chappie 隧道 health 端口</label>
+      <input type="number" id="tunnelPort" min="0" max="65535">
+    </div>
+    <div class="row">
+      <label for="diagnostics">诊断日志（本机 JSONL）</label>
+      <input type="checkbox" id="diagnostics">
+    </div>
+  </details>
+  <script src="tunnel-status.js"></script>
+  <script src="popup.js"></script>
+  <script src="pi-panel.js"></script>
+  <script src="codex-threads-panel.js"></script>
+  <script src="account-limits.js"></script>
+  <script src="pause-banner.js"></script>
+</body>
+</html>

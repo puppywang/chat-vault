@@ -1,0 +1,16 @@
+{
+	"name": "chat-vault-pi-timestamps",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Pi TUI extension: show local time (HH:MM:SS) for every message and tool block",
+	"type": "module",
+	"keywords": [
+		"pi-package"
+	],
+	"pi": {
+		"extensions": [
+			"./extensions/local-time.js"
+		]
+	},
+	"license": "MIT"
+}

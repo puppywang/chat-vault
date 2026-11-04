@@ -1,0 +1,118 @@
+#!/bin/sh
+# ChatVault 备份收端（受限）。远端 authorized_keys 形如：
+#   command="$HOME/.local/bin/chatvault-recvd",restrict ssh-ed25519 AAAA... chatvault-backup
+# 该 key 只能触发本脚本放行的动作，其余命令一律拒绝：
+#   recv [--gzip] <rel>                      stdin -> $ROOT/<rel>.part，非空才 mv 就位
+#   finalize <sha256> <s> <m> <w> <kW> <kM>  校验 sha256/完整性/行数后才提升 verified/latest.db，
+#                                            并后台生成 zstd 周/月档、按份数裁剪
+#   status                                   只读盘点（给 `chat-vault backup --status` 用）
+#   rsync --server ...                       转交 rrsync -wo（只写、不可读回、不可乱跑命令）
+# 设计见 docs/BACKUP-DESIGN.md
+set -u
+
+ROOT="${CHATVAULT_BACKUP_ROOT:-/srv/backup/chatvault}"
+RRSYNC="${CHATVAULT_RRSYNC:-/usr/bin/rrsync}"
+CMD="${SSH_ORIGINAL_COMMAND:-}"
+CMD="${CMD#chatvault-recvd }"
+
+fail() { printf '{"ok":false,"error":"%s"}\n' "$(printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')" >&2; exit 1; }
+mb() { awk -v b="$1" 'BEGIN{printf "%.2f", b/1048576}'; }
+
+# 相对路径必须落在 ROOT 内，且只允许安全字符
+safe_rel() {
+  case "$1" in ''|/*|*..*) fail "bad path: $1" ;; esac
+  case "$1" in *[!A-Za-z0-9._/-]*) fail "bad path: $1" ;; esac
+  printf '%s' "$1"
+}
+
+case "$CMD" in
+  'restic-stdio chatvault')
+    # Separate repository root; no shell access or access to legacy backups.
+    umask 077
+    mkdir -p "$ROOT/restic" || fail "restic mkdir failed"
+    exec timeout --signal=TERM --kill-after=15s 7200s "$HOME/.local/bin/rclone" serve restic --stdio --config /dev/null "$ROOT/restic"
+    ;;
+
+  rsync\ --server*)
+    exec "$RRSYNC" -wo "$ROOT"
+    ;;
+
+  recv\ *)
+    set -- $CMD
+    gz=0
+    if [ "${2:-}" = "--gzip" ]; then gz=1; shift; fi
+    rel=$(safe_rel "${2:-}")
+    dest="$ROOT/$rel"
+    mkdir -p "$(dirname "$dest")" || fail "mkdir failed"
+    tmp="$dest.part"
+    if [ "$gz" = 1 ]; then
+      gzip -dc > "$tmp" || { rm -f "$tmp"; fail "gunzip failed"; }
+    else
+      cat > "$tmp" || { rm -f "$tmp"; fail "write failed"; }
+    fi
+    size=$(wc -c < "$tmp" | tr -d ' ')
+    [ "$size" -gt 0 ] || { rm -f "$tmp"; fail "empty payload"; }
+    mv -f "$tmp" "$dest" || fail "mv failed"
+    printf '{"ok":true,"path":"%s","size":%s}\n' "$rel" "$size"
+    ;;
+
+  finalize\ *)
+    set -- $CMD
+    exp_sha="${2:-}"; exp_s="${3:-}"; exp_m="${4:-}"; exp_w="${5:-}"; keep_w="${6:-8}"; keep_m="${7:-3}"
+    db="$ROOT/incoming/current.db"
+    [ -f "$db" ] || fail "no incoming/current.db"
+    got_sha=$(sha256sum "$db" | cut -d' ' -f1)
+    [ "$got_sha" = "$exp_sha" ] || fail "sha256 mismatch (remote $got_sha)"
+
+    ic=$(sqlite3 "$db" 'PRAGMA integrity_check;' 2>&1) || fail "sqlite3 failed: $ic"
+    [ "$ic" = "ok" ] || fail "integrity_check: $ic"
+    counts=$(sqlite3 "$db" 'SELECT (SELECT count(*) FROM sessions),(SELECT count(*) FROM messages),(SELECT count(*) FROM workspaces);')
+    s=$(printf '%s' "$counts" | cut -d'|' -f1)
+    m=$(printf '%s' "$counts" | cut -d'|' -f2)
+    w=$(printf '%s' "$counts" | cut -d'|' -f3)
+    [ "$s" = "$exp_s" ] || fail "sessions mismatch (remote $s, local $exp_s)"
+    [ "$m" = "$exp_m" ] || fail "messages mismatch (remote $m, local $exp_m)"
+
+    mkdir -p "$ROOT/verified" "$ROOT/manifest" "$ROOT/archive"
+    cp --reflink=auto "$db" "$ROOT/verified/latest.db.part" || fail "promote copy failed"
+    mv -f "$ROOT/verified/latest.db.part" "$ROOT/verified/latest.db" || fail "promote mv failed"
+    [ -f "$ROOT/incoming/manifest.json" ] && cp -f "$ROOT/incoming/manifest.json" "$ROOT/manifest/latest.json"
+
+    # 归档与裁剪放后台：zstd 大库要几十秒，别拖住推送（setsid 免被 ssh 退出 SIGHUP）
+    week=$(date -u +%G-W%V); month=$(date -u +%Y-%m)
+    ( cd "$ROOT" || exit 0
+      if [ ! -f "archive/chat-vault-$week.db.zst" ]; then
+        zstd -q -3 -T0 -f "verified/latest.db" -o "archive/chat-vault-$week.db.zst.part" && mv -f "archive/chat-vault-$week.db.zst.part" "archive/chat-vault-$week.db.zst"
+      fi
+      if [ ! -f "archive/chat-vault-$month.db.zst" ]; then
+        zstd -q -3 -T0 -f "verified/latest.db" -o "archive/chat-vault-$month.db.zst.part" && mv -f "archive/chat-vault-$month.db.zst.part" "archive/chat-vault-$month.db.zst"
+      fi
+      ls -1t archive/chat-vault-????-W??.db.zst 2>/dev/null | tail -n +$((keep_w + 1)) | while read -r f; do rm -f "$f"; done
+      ls -1t archive/chat-vault-????-??.db.zst 2>/dev/null | tail -n +$((keep_m + 1)) | while read -r f; do rm -f "$f"; done
+    ) </dev/null >"$ROOT/archive/rotate.log" 2>&1 &
+
+    size=$(wc -c < "$ROOT/verified/latest.db" | tr -d ' ')
+    printf '{"ok":true,"integrity":"%s","counts":{"sessions":%s,"messages":%s,"workspaces":%s},"sha256":"%s","verified_file":"%s/verified/latest.db","verified_size_mb":%s,"archiving":true}\n' \
+      "$ic" "$s" "$m" "$w" "$got_sha" "$ROOT" "$(mb "$size")"
+    ;;
+
+  status)
+    [ -d "$ROOT" ] || fail "no such dir: $ROOT"
+    verified_size=0; verified_mtime=""
+    if [ -f "$ROOT/verified/latest.db" ]; then
+      verified_size=$(wc -c < "$ROOT/verified/latest.db" | tr -d ' ')
+      verified_mtime=$(date -u -r "$ROOT/verified/latest.db" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || printf '')
+    fi
+    incoming_size=0
+    [ -f "$ROOT/incoming/current.db" ] && incoming_size=$(wc -c < "$ROOT/incoming/current.db" | tr -d ' ')
+    archives=$(ls -1 "$ROOT/archive"/*.db.zst 2>/dev/null | wc -l | tr -d ' ')
+    free=$(df -Pk "$ROOT" | awk 'NR==2{printf "%.1f", $4/1048576}')
+    last_manifest=$( [ -f "$ROOT/manifest/latest.json" ] && tr -d '\n' < "$ROOT/manifest/latest.json" || printf 'null' )
+    printf '{"ok":true,"root":"%s","verified_size_mb":%s,"verified_mtime":"%s","incoming_size_mb":%s,"archives":%s,"free_gb":%s,"manifest":%s}\n' \
+      "$ROOT" "$(mb "$verified_size")" "$verified_mtime" "$(mb "$incoming_size")" "$archives" "$free" "$last_manifest"
+    ;;
+
+  *)
+    fail "denied: $CMD"
+    ;;
+esac

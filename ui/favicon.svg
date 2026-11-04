@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="ChatVault">
+  <title>ChatVault</title>
+  <!-- 一问一答的缩进节奏 = 对话；三种颜色取自界面里的 agent 徽章色 = 多 agent 汇入同一个库。
+       坐标全部对齐 16px 网格（64 viewBox 下取 4 的倍数），缩到标签页 16px 时边缘不发虚。 -->
+  <rect width="64" height="64" rx="12" fill="#12161c"/>
+  <rect x="12" y="12" width="36" height="8" rx="4" fill="#10a37f"/>
+  <rect x="24" y="28" width="28" height="8" rx="4" fill="#4f9cf7"/>
+  <rect x="12" y="44" width="24" height="8" rx="4" fill="#d97757"/>
+</svg>

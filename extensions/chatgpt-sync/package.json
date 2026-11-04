@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:tokenizer": "esbuild tokenizer-entry.js --bundle --format=esm --platform=browser --target=chrome120 --outfile=tokenizer.js --minify"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.12",
+    "fake-indexeddb": "6.2.5",
+    "js-tiktoken": "^1.0.21"
+  }
+}

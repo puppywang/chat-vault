@@ -1,0 +1,36 @@
+# 密钥（AI 助手 API key，勿提交）
+API_KEY.txt
+
+# 依赖与运行产物
+node_modules/
+*.log
+
+# 本地数据 / 编辑器
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.tgz
+*.zip
+dist/
+.tmp/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Private operational records stay local; publish reusable integrations only.
+/docs/*-20*.json
+/integrations/browser-region-check-*/
+/integrations/mcp-control/
+/integrations/chappie/*
+!/integrations/chappie/README.md
+!/integrations/chappie/codex-upstream-observer.d.ts
+scripts/run-chatvault-hidden.vbs
+scripts/run-backup-hidden.vbs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

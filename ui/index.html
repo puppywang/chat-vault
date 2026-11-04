@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChatVault · 对话归档</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#12161c">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <div class="brand" id="brand" title="返回对话列表">
+    <!-- 与 favicon 同一套几何，去掉底板：一问一答的缩进 + 三个 agent 色 -->
+    <svg class="brand-mark" viewBox="10 10 44 44" aria-hidden="true">
+      <rect x="12" y="12" width="36" height="8" rx="4" fill="#10a37f"/>
+      <rect x="24" y="28" width="28" height="8" rx="4" fill="#4f9cf7"/>
+      <rect x="12" y="44" width="24" height="8" rx="4" fill="#d97757"/>
+    </svg>ChatVault</div>
+  <div class="searchbar">
+    <span class="search-icon" aria-hidden="true">🔍</span>
+    <input id="search-input" type="search" placeholder='搜索全部会话（"引号短语" = 连续匹配）' autocomplete="off"
+           title='搜索全部会话：中英文均可；"引号短语" 表示连续匹配'>
+    <kbd class="search-kbd" id="search-kbd" title="按 / 或 Ctrl+K 聚焦搜索">/</kbd>
+    <div class="search-nav" id="search-nav" style="display:none">
+      <span class="ss-count" id="ss-count"></span>
+      <button class="ss-btn" id="ss-prev" title="上一个 (Shift+Enter)">▲</button>
+      <button class="ss-btn" id="ss-next" title="下一个 (Enter)">▼</button>
+    </div>
+  </div>
+  <details id="sync-status" class="sync-status">
+    <summary id="sync-status-label" title="查看本地入库与云端备份状态">同步状态…</summary>
+    <div class="sync-panel">
+      <div class="sync-panel-top"><strong>同步与备份</strong><button id="sync-status-refresh" class="set-btn">刷新状态</button></div>
+      <div id="sync-status-content" aria-live="polite"></div>
+    </div>
+  </details>
+  <button id="settings-btn" class="hdr-btn" title="设置">⚙️</button>
+</header>
+
+<div class="layout">
+  <aside id="sidebar">
+    <nav>
+      <button class="nav-btn active" data-view="timeline">🕘 时间线</button>
+      <button class="nav-btn" data-view="workspaces">📁 工作区</button>
+      <button class="nav-btn" data-view="flagged">🚩 标记</button>
+    </nav>
+    <!-- 工作区过滤：列表占据侧栏剩余高度，自己滚动（侧栏本身不滚，避免双滚动条） -->
+    <section class="side-sec side-ws">
+      <div class="side-head">工作区<span class="side-cnt" id="ws-total"></span></div>
+      <input id="ws-filter" class="ws-filter" type="search" placeholder="过滤工作区…" autocomplete="off">
+      <div id="workspace-list" class="workspace-list"></div>
+    </section>
+    <!-- Agent 过滤：原先在顶栏挤成两排且看不出颜色归属，移到侧栏并带色点 + 会话数 -->
+    <details class="side-sec side-agents" id="agent-sec" open>
+      <summary class="side-head">Agent<span class="side-cnt" id="agent-total"></span></summary>
+      <div class="agents" id="agent-filters"></div>
+    </details>
+    <div id="stats-box" class="stats-box"></div>
+  </aside>
+
+  <main id="main">
+    <div id="content"></div>
+  </main>
+</div>
+
+<!-- 悬浮入口：对话库助手（全局）+ 在 agent 中继续（仅会话页，点开是同款抽屉） -->
+<div class="fab-stack">
+  <button id="runtime-fab" class="fab fab-sub" hidden></button>
+  <button id="ai-fab" class="fab" title="对话库助手：自然语言查对话库">💬</button>
+</div>
+<div id="drawer-scrim" class="drawer-scrim"></div>
+
+<!-- 在 agent 中继续：外壳静态，内容由会话渲染时填入（同一套 runtime-* 元素 id） -->
+<div id="runtime-drawer" class="drawer">
+  <div class="drawer-head">
+    <span id="runtime-drawer-title">在 agent 中继续</span>
+    <span><button id="runtime-close" title="收起">✕</button></span>
+  </div>
+  <div id="runtime-drawer-body" class="drawer-body"></div>
+</div>
+
+<div id="ai-drawer" class="drawer">
+  <div class="drawer-head">
+    <span>💬 对话库助手</span>
+    <span>
+      <button id="ai-clear" title="清空当前显示（历史问答已归档，刷新后可恢复）">🗑</button>
+      <button id="ai-close" title="收起">✕</button>
+    </span>
+  </div>
+  <div id="ai-msgs" class="ai-msgs"></div>
+  <div class="ai-input-row">
+    <input id="ai-input" type="text" placeholder="问点什么，如：哪些对话有未完成的任务？" autocomplete="off">
+    <button id="ai-send">➤</button>
+  </div>
+</div>
+
+<script src="/sync-status.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

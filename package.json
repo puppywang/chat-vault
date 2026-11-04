@@ -1,0 +1,67 @@
+{
+  "name": "chat-vault",
+  "version": "0.5.0",
+  "description": "Local conversation archive for people and AI agents: Web UI, full-text search and read-only MCP.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "chat-vault": "bin/chat-vault.js"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "ui/",
+    "docs/*.md",
+    "docs/icon.png",
+    "docs/screenshots/*.png",
+    "scripts/install-autostart.ps1",
+    "scripts/install-backup-task.ps1",
+    "scripts/remote/chatvault-recvd",
+    "integrations/pi-services/",
+    "integrations/pi-timestamps/",
+    "integrations/chappie/codex-upstream-observer.d.ts",
+    "extensions/chatgpt-sync/*.js",
+    "extensions/chatgpt-sync/*.html",
+    "extensions/chatgpt-sync/manifest.json",
+    "extensions/chatgpt-sync/README.md",
+    "extensions/chatgpt-sync/THIRD_PARTY_NOTICES.md",
+    "AGENTS.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "verify:chatgpt": "node scripts/verify-chatgpt-extension.mjs",
+    "start": "node src/cli.js serve",
+    "sync": "node src/cli.js sync",
+    "search": "node src/cli.js search",
+    "serve": "node src/cli.js serve",
+    "stats": "node src/cli.js stats",
+    "logs": "node src/cli.js logs",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "claude-code",
+    "codex",
+    "copilot",
+    "cursor",
+    "windsurf",
+    "conversations",
+    "archive",
+    "search",
+    "sqlite",
+    "fts5",
+    "mcp",
+    "chat-history"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/puppywang/chat-vault.git"
+  },
+  "homepage": "https://github.com/puppywang/chat-vault#readme",
+  "bugs": "https://github.com/puppywang/chat-vault/issues"
+}
