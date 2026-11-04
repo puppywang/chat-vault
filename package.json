@@ -22,6 +22,7 @@
     "integrations/chappie/codex-upstream-observer.d.ts",
     "extensions/chatgpt-sync/*.js",
     "extensions/chatgpt-sync/*.html",
+    "extensions/chatgpt-sync/*.png",
     "extensions/chatgpt-sync/manifest.json",
     "extensions/chatgpt-sync/README.md",
     "extensions/chatgpt-sync/THIRD_PARTY_NOTICES.md",

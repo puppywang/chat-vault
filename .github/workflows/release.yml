@@ -58,9 +58,25 @@ jobs:
           # 版本号别名：releases/latest/download/chat-vault.tgz 永久直链（README 安装命令用）
           cp dist/chat-vault-*.tgz dist/chat-vault.tgz
           cd extensions/chatgpt-sync
-          zip -q ../../dist/chatgpt-sync.zip *.js *.html manifest.json README.md THIRD_PARTY_NOTICES.md
+          zip -q ../../dist/chatgpt-sync.zip *.js *.html *.png manifest.json README.md THIRD_PARTY_NOTICES.md
           cd ../../dist
           sha256sum *.tgz *.zip > SHA256SUMS.txt
+
+      - name: 校验扩展包的 manifest 文件引用
+        run: |
+          python3 - <<'PY'
+          import json, zipfile
+          with zipfile.ZipFile('dist/chatgpt-sync.zip') as z:
+              names = set(z.namelist())
+              m = json.loads(z.read('manifest.json'))
+              refs = [m['background']['service_worker'], m['action']['default_popup']]
+              refs.extend(m['action'].get('default_icon', {}).values())
+              refs.extend(m.get('icons', {}).values())
+              for item in m.get('content_scripts', []):
+                  refs.extend(item.get('js', []))
+                  refs.extend(item.get('css', []))
+              assert all(name in names for name in refs), 'Manifest resource missing from extension ZIP'
+          PY
 
       - name: 产物挂到 GitHub Release
         env:
